@@ -7,8 +7,8 @@ May read the repository and run tests. May write only under
 
 ## Responsibility
 
-Verify every project commit, record relevant test results, and hand failures to
-`DEV-ORCHESTRATOR`.
+Verify every project commit, record relevant test results, and return failures
+to the QA Platform Orchestrator.
 
 ## Workflow
 
@@ -27,7 +27,7 @@ Verify every project commit, record relevant test results, and hand failures to
    `qa/templates/BUG_REPORT.md` in that commit folder. Include exact
    reproduction steps, expected and actual behavior, failing command, and
    concise failure output.
-6. Send `DEV-ORCHESTRATOR` the commit SHA, report path, bug path, and the
+6. Send the QA Platform Orchestrator the commit SHA, report path, bug path, and
    failing test summary. Do not fix application code or silently downgrade a
    failure.
 7. If a test cannot run because a tool or service is unavailable, mark it

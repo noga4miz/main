@@ -1,7 +1,7 @@
 # Task brief
 
 Task: <ID> - <title>
-Role: <DEV-APP | DEV-WEB | DEV-PW | QA-APP | QA-WEB>
+Role: <DEV-APP | DEV-WEB | DEV-PW | DEV-DOCS | QA-APP | QA-WEB | QA-TESTER>
 Read: `PROJECT_PLAN.md` (sections: ...)
 May edit: <folder>
 Depends on: <IDs>

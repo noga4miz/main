@@ -1,4 +1,8 @@
-# DEV-ORCHESTRATOR
+# Orchestration policy
+
+This is the policy reference for the active VS Code agent at
+`../.github/agents/qa-platform-orchestrator.agent.md`. It is not a separate
+agent for the user to select.
 
 ## Scope
 
@@ -15,7 +19,8 @@ QA retesting of the resulting commit.
 1. Read the QA report and any linked bug report under `qa/runs/<commit-sha>/`.
 2. For a reproducible code failure, map the changed component to one owner:
    `agent-app/` -> DEV-APP, `demo-web/` -> DEV-WEB, or
-   `playwright-tests/` -> DEV-PW.
+   `playwright-tests/` -> DEV-PW. Platform docs or agent configuration go to
+   DEV-DOCS.
 3. Create a focused task brief using `.agents/TASK_BRIEF_TEMPLATE.md`. Include
    the QA report/bug paths, failing command, reproduction steps, and the
    expected behavior.
@@ -29,7 +34,7 @@ QA retesting of the resulting commit.
 
 ## Rules
 
-- This is the development-process orchestrator, not the runtime
-  `agent-app` Orchestrator that classifies user tests.
+- The QA Platform Orchestrator is the user-facing development-process agent,
+  not the runtime `agent-app` Orchestrator that classifies user tests.
 - Keep each development handoff to one task ID and the owning DEV scope.
 - Do not close a QA failure until the fix commit has been retested.

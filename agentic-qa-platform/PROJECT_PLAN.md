@@ -23,8 +23,11 @@ An AI-agent platform that turns a URL and a plain-language test description into
 The application, demo web, and Playwright project remain separate areas with the
 contracts in Section 5. The existing `llm-client/` is a standalone Python
 package used for APP-02; it stays at the repository root rather than being moved
-into `agent-app/core/`. The tree below reflects the current layout; README files
-mark current areas and folders reserved for later implementation.
+into `agent-app/core/`. The runnable VS Code Copilot agents are defined in the
+parent repository's `.github/agents/`; the platform's `.vscode/settings.json`
+enables discovery of those parent-repository agents when this subfolder is
+opened directly. README files mark current areas and folders reserved for later
+implementation.
 
 ```
 agentic-qa-platform/
@@ -33,9 +36,11 @@ agentic-qa-platform/
 ├─ .gitignore
 ├─ .env.example
 ├─ docker-compose.yml
-├─ .agents/                    # development and QA agent role files
+├─ .vscode/settings.json        # discover custom agents in the parent repo
+├─ .agents/                    # development and QA role policies
 │   ├─ README.md
 │   ├─ DEV-APP.md
+│   ├─ DEV-DOCS.md
 │   ├─ DEV-ORCHESTRATOR.md
 │   ├─ DEV-PW.md
 │   ├─ DEV-WEB.md
@@ -224,17 +229,23 @@ A small self-contained site we fully control, so we can demonstrate both working
 
 ## 7. Development-process agents (how we build this project)
 
-Separate from the runtime agents. These are role prompts in `.agents/` that we point at **one task ID at a time**.
+These are separate from the runtime agents. Role policies live in `.agents/`;
+the runnable Copilot agents live in the parent repository's `.github/agents/`.
+Select **QA Platform Orchestrator** in the VS Code Chat agent picker as the
+single user-facing agent. The DEV and QA workers are hidden from the picker and
+are invoked by the orchestrator as subagents.
 
 | Agent | Scope (may edit) | Responsibility |
 |---|---|---|
-| **DEV-APP** | `agent-app/` | Implements the application and runtime agents |
-| **DEV-WEB** | `demo-web/` | Implements the demo web |
-| **DEV-PW** | `playwright-tests/` | Implements conftest, setup, helpers, golden tests |
-| **DEV-ORCHESTRATOR** | Coordination only; no application code | Routes QA bug reports to the appropriate DEV role and requests retesting |
+| **QA Platform Orchestrator** | Coordination only; no direct code edits | Sole user-facing entry point; delegates work, handles bug routing, and returns verified results |
+| **Platform DEV-APP** | `agent-app/` | Implements the application and runtime agents |
+| **Platform DEV-WEB** | `demo-web/` | Implements the demo web |
+| **Platform DEV-PW** | `playwright-tests/` | Implements conftest, setup, helpers, golden tests |
+| **Platform DEV-DOCS** | Platform docs and agent configuration | Keeps project docs, role policies, and Copilot agents aligned |
+| **DEV-ORCHESTRATOR policy** | `.agents/DEV-ORCHESTRATOR.md` | Routing rules used by the main orchestrator; not a separate chat agent |
 | **QA-APP** | `agent-app/tests/` | Tests our application (unit, agent behavior, e2e) |
 | **QA-WEB** | `demo-web/tests/` | Verifies the web under test behaves as designed, including each bug mode |
-| **QA-TESTER** | `qa/runs/<commit-sha>/` | Runs relevant tests for each commit, records results, and reports failures |
+| **Platform QA-TESTER** | `qa/runs/<commit-sha>/` | Runs relevant tests for each commit, records results, and reports failures |
 
 **Rules:** an agent edits only its scope; one task ID per session; each task ends with "Done when" satisfied; any cross-folder change goes through the contracts in Section 5.
 After every change, run all existing tests relevant to the changed code and any
@@ -243,8 +254,9 @@ components, and report the commands and results with the task outcome.
 
 ### Per-commit QA and bug handoff
 
-For every project commit, invoke **QA-TESTER** with the full commit SHA.
-QA-TESTER confirms that the workspace is at that commit, inspects the commit's
+For every project commit, the **QA Platform Orchestrator** invokes **Platform
+QA-TESTER** with the full commit SHA. QA-TESTER confirms that the workspace is
+at that commit, inspects the commit's
 changed files, runs every relevant test suite, and creates
 `qa/runs/<full-commit-sha>/REPORT.md` using the report template. Each suite is
 recorded as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`; skipped tests or missing
@@ -253,22 +265,23 @@ automated tests, the report records `NOT RUN` and explains why.
 
 When a test fails, QA-TESTER creates a `BUG-<number>.md` in the same commit
 folder with the failing command, expected and actual behavior, concise failure
-output, and reproduction steps. It then hands the report and bug path to
-**DEV-ORCHESTRATOR**. The orchestrator identifies the owning area, creates a
-task brief for **DEV-APP**, **DEV-WEB**, or **DEV-PW**, and requests a new
-commit. QA-TESTER reruns the relevant tests against that fix commit and records
-the new result under its SHA. Environment/setup failures are marked `BLOCKED`
-and returned to the orchestrator as blockers, not misreported as application
-bugs.
+output, and reproduction steps. QA-TESTER returns the report and bug path to
+the **QA Platform Orchestrator**. It identifies the owning area, delegates a
+focused fix to **Platform DEV-APP**, **Platform DEV-WEB**, **Platform DEV-PW**,
+or **Platform DEV-DOCS**, and invokes QA-TESTER again on the fix. QA-TESTER
+records the new result under the fix commit's SHA. Environment/setup failures
+are marked `BLOCKED` and returned to the user as blockers, not misreported as
+application bugs.
 
 The report and bug files are local/CI artifacts, not GitHub issues. The
-orchestrator handoff is an explicit agent task; it is not automatically
-triggered by Git hooks or CI yet.
+orchestrator invokes worker agents within the same chat, so the user stays in
+one conversation. Git hooks and CI do not automatically start the orchestrator;
+select it in the VS Code agent picker and submit requests there.
 
 **Task brief template**
 ```
 Task: <ID> - <title>
-Role: <DEV-APP | DEV-WEB | DEV-PW | DEV-ORCHESTRATOR | QA-APP | QA-WEB | QA-TESTER>
+Role: <DEV-APP | DEV-WEB | DEV-PW | DEV-DOCS | QA-APP | QA-WEB | QA-TESTER>
 Read: PROJECT_PLAN.md (sections: ...)
 May edit: <folder>
 Depends on: <IDs>
@@ -294,7 +307,7 @@ Status values: `todo`, `doing`, `done`. Work in order by phase. Within a phase, 
 | REPO-04 | Set monthly API spend cap and store key locally | (manual) | - | Cap set; key in `.env` only | todo |
 | DB-01 | `docker-compose.yml` with MongoDB | DEV-APP | REPO-01 | `docker compose up` gives a reachable Mongo; Compose smoke tests pass | doing |
 | REPO-05 | Add QA agent and per-commit test reports | QA-TESTER | REPO-03 | QA report template and bug handoff flow are documented | done |
-| REPO-06 | Add dev workflow orchestrator for QA bugs | DEV-ORCHESTRATOR | REPO-05 | Failed tests are assigned to a scoped DEV role and retested | done |
+| REPO-06 | Add selectable orchestrator and hidden worker agents | QA Platform Orchestrator | REPO-05 | User requests route through one chat to DEV/QA subagents | done |
 
 ### Phase 1: Demo web
 

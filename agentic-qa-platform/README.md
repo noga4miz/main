@@ -11,8 +11,19 @@ executable Playwright tests.
 - `llm-client/` — standalone multi-provider LLM client (APP-02)
 - `.agents/` — development-process agent role files
 - `qa/` — per-commit QA reports, bug reports, and templates
+- `../.github/agents/` — VS Code custom agents, including the user-facing orchestrator
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for architecture, contracts, and tasks.
+
+## Use the orchestrator in VS Code
+
+Open the repository in VS Code and select **QA Platform Orchestrator** in the
+Chat agent picker. This is the only user-facing project agent. It delegates
+implementation to hidden DEV agents and verification to the hidden QA-TESTER
+agent, then reports results back in the same chat. If you open only this
+subfolder and the agent is not listed, the workspace setting enables discovery
+from the parent repository; reload the window or run **Chat: Open
+Customizations** to verify the agent files were discovered.
 
 ## Configuration
 
@@ -46,9 +57,9 @@ after installing its development dependencies.
 
 ## Commit-by-commit QA
 
-After each commit, invoke `QA-TESTER` with its full SHA. It writes the test
-status and commands to `qa/runs/<full-commit-sha>/REPORT.md`. On failure, it
-creates a bug report there and hands it to `DEV-ORCHESTRATOR`, which assigns a
-scoped development agent and requests a retest of the fix commit. See
-`qa/README.md` and Section 7 of `PROJECT_PLAN.md`. This is an explicit
-agent-driven handoff for now; Git hooks and CI do not invoke the agents yet.
+Keep **QA Platform Orchestrator** selected in the Chat agent picker. After a
+change or commit, it invokes the hidden QA-TESTER subagent, which writes the
+status and commands to `qa/runs/<full-commit-sha>/REPORT.md`. On failure, the
+orchestrator delegates a fix to a scoped DEV agent and asks QA to retest.
+See `qa/README.md` and Section 7 of `PROJECT_PLAN.md`. Git hooks and CI do not
+start the orchestrator automatically yet.
