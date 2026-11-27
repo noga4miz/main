@@ -44,9 +44,11 @@ agentic-qa-platform/
 │   ├─ DEV-ORCHESTRATOR.md
 │   ├─ DEV-PW.md
 │   ├─ DEV-WEB.md
+│   ├─ PROJECT_STANDARDS.md
 │   ├─ QA-APP.md
 │   ├─ QA-TESTER.md
 │   ├─ QA-WEB.md
+│   ├─ PROJECT_STANDARDS.md
 │   └─ TASK_BRIEF_TEMPLATE.md
 ├─ llm-client/                 # standalone LLM package; implements APP-02
 │   ├─ README.md
@@ -67,7 +69,8 @@ agentic-qa-platform/
 │   │   └─ specialists/README.md
 │   ├─ core/README.md
 │   ├─ prompts/README.md
-│   └─ tests/README.md
+│   ├─ tests/README.md
+│   └─ requirements-test.txt
 ├─ demo-web/                   # FOLDER 2: the web app UNDER TEST
 │   ├─ README.md
 │   ├─ assets/README.md
@@ -94,13 +97,17 @@ agentic-qa-platform/
     └─ runs/
         ├─ README.md
         └─ <full-commit-sha>/
-            ├─ REPORT.md
-            └─ BUG-<number>.md  # created only when a test finds a defect
+            └─ <UTC-run-id>/
+                ├─ REPORT.md
+                ├─ allure-results/
+                ├─ allure-report/
+                └─ BUG-<number>.md  # created only when a test finds a defect
 ```
 
-Generated `qa/runs/<full-commit-sha>/` folders are local/CI test artifacts and
-are ignored by Git to avoid a QA report commit triggering another QA cycle.
-CI should retain them as artifacts once the workflow is configured.
+Generated `qa/runs/<sha-or-working-tree>/<UTC-run-id>/` folders are local/CI
+test artifacts and are ignored by Git to avoid a QA report commit triggering
+another QA cycle. CI should retain them as artifacts once the workflow is
+configured.
 
 ### Existing `llm-client/` package (APP-02)
 
@@ -231,52 +238,65 @@ A small self-contained site we fully control, so we can demonstrate both working
 
 These are separate from the runtime agents. Role policies live in `.agents/`;
 the runnable Copilot agents live in the parent repository's `.github/agents/`.
-Select **QA Platform Orchestrator** in the VS Code Chat agent picker as the
-single user-facing agent. The DEV and QA workers are hidden from the picker and
-are invoked by the orchestrator as subagents.
+Select **Agentic QA Platform Product Manager** in the VS Code Chat agent picker
+as the single user-facing agent. Users describe the task normally; the Product
+Manager infers whether it belongs to the app, demo site, Playwright project, or
+docs, and delegates to the right DEV then QA agent. Workers are hidden from the
+picker.
 
 | Agent | Scope (may edit) | Responsibility |
 |---|---|---|
-| **QA Platform Orchestrator** | Coordination only; no direct code edits | Sole user-facing entry point; delegates work, handles bug routing, and returns verified results |
+| **Agentic QA Platform Product Manager** | Product coordination; no direct code edits | Sole user-facing entry point; clarifies requests, writes acceptance criteria, delegates work, routes QA findings, and returns verified results |
 | **Platform DEV-APP** | `agent-app/` | Implements the application and runtime agents |
 | **Platform DEV-WEB** | `demo-web/` | Implements the demo web |
 | **Platform DEV-PW** | `playwright-tests/` | Implements conftest, setup, helpers, golden tests |
 | **Platform DEV-DOCS** | Platform docs and agent configuration | Keeps project docs, role policies, and Copilot agents aligned |
 | **DEV-ORCHESTRATOR policy** | `.agents/DEV-ORCHESTRATOR.md` | Routing rules used by the main orchestrator; not a separate chat agent |
-| **QA-APP** | `agent-app/tests/` | Tests our application (unit, agent behavior, e2e) |
-| **QA-WEB** | `demo-web/tests/` | Verifies the web under test behaves as designed, including each bug mode |
-| **Platform QA-TESTER** | `qa/runs/<commit-sha>/` | Runs relevant tests for each commit, records results, and reports failures |
+| **Platform QA-APP** | `agent-app/tests/`, `qa/runs/` | Runs relevant application tests with pytest and generates an Allure HTML report for every QA run |
+| **Platform QA-WEB** | `demo-web/tests/`, `qa/runs/` | Verifies demo-web behavior; pytest suites also generate Allure reports |
+| **Platform QA-TESTER** | `qa/runs/` | Runs Playwright-infrastructure or cross-component checks and reports failures |
 
 **Rules:** an agent edits only its scope; one task ID per session; each task ends with "Done when" satisfied; any cross-folder change goes through the contracts in Section 5.
+All DEV and QA agents must follow `.agents/PROJECT_STANDARDS.md`. The Product
+Manager maintains these shared standards from user direction and includes them
+in every task handoff.
 After every change, run all existing tests relevant to the changed code and any
 new regression tests. Run tests for each affected component when a change spans
 components, and report the commands and results with the task outcome.
 
-### Per-commit QA and bug handoff
+### Per-task QA and bug handoff
 
-For every project commit, the **QA Platform Orchestrator** invokes **Platform
-QA-TESTER** with the full commit SHA. QA-TESTER confirms that the workspace is
-at that commit, inspects the commit's
-changed files, runs every relevant test suite, and creates
-`qa/runs/<full-commit-sha>/REPORT.md` using the report template. Each suite is
-recorded as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`; skipped tests or missing
-Docker/dependencies are never reported as a pass. For changes with no relevant
-automated tests, the report records `NOT RUN` and explains why.
+After each implementation task, the **Product Manager** invokes the QA agent
+for the affected component: **Platform QA-APP** for `agent-app/`,
+**Platform QA-WEB** for `demo-web/`, or **Platform QA-TESTER** for Playwright infrastructure and
+cross-component verification. The worker inspects the change, runs every
+relevant test suite, and creates a unique report folder:
+`qa/runs/<full-commit-sha>/<UTC-run-id>/` for committed changes, or
+`qa/runs/working-tree/<UTC-run-id>/` for an uncommitted diff. Each suite is
+recorded as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`; skipped or missing tests
+are never reported as a pass.
 
-When a test fails, QA-TESTER creates a `BUG-<number>.md` in the same commit
+Application tests use pytest and `allure-pytest`. **Platform QA-APP must run
+pytest with `--alluredir` and generate a browsable HTML report with
+`allure generate` for every QA run**, including failing runs. It records
+`allure-results/` and `allure-report/` paths in `REPORT.md`. The Allure CLI
+requires Java; missing prerequisites or no collected tests are explicit
+blockers, not a successful run. Python pytest suites run by other QA workers
+also produce Allure reports.
+
+When a test fails, the QA worker creates a `BUG-<number>.md` in that run
 folder with the failing command, expected and actual behavior, concise failure
-output, and reproduction steps. QA-TESTER returns the report and bug path to
-the **QA Platform Orchestrator**. It identifies the owning area, delegates a
-focused fix to **Platform DEV-APP**, **Platform DEV-WEB**, **Platform DEV-PW**,
-or **Platform DEV-DOCS**, and invokes QA-TESTER again on the fix. QA-TESTER
-records the new result under the fix commit's SHA. Environment/setup failures
-are marked `BLOCKED` and returned to the user as blockers, not misreported as
-application bugs.
+output, and reproduction steps. The QA worker returns report and bug paths to the Product Manager. The Product
+Manager delegates a focused fix to the owning DEV agent, then invokes the
+matching QA agent again on the fix. The new QA run gets a separate report
+folder. Environment/setup failures are marked `BLOCKED` and returned to the
+user as blockers, not misreported as application bugs.
 
-The report and bug files are local/CI artifacts, not GitHub issues. The
-orchestrator invokes worker agents within the same chat, so the user stays in
-one conversation. Git hooks and CI do not automatically start the orchestrator;
-select it in the VS Code agent picker and submit requests there.
+The report and bug files are local/CI artifacts, not GitHub issues. The Product
+Manager invokes worker agents within the same chat, so the user stays in one
+conversation and does not choose agents. Git hooks and CI do not automatically
+start the Product Manager; select it once in the VS Code agent picker and submit
+requests there.
 
 **Task brief template**
 ```
@@ -306,8 +326,8 @@ Status values: `todo`, `doing`, `done`. Work in order by phase. Within a phase, 
 | REPO-03 | Create `.agents/` role files and task brief template | DEV-APP | REPO-01 | Five role files exist with scope and rules | done |
 | REPO-04 | Set monthly API spend cap and store key locally | (manual) | - | Cap set; key in `.env` only | todo |
 | DB-01 | `docker-compose.yml` with MongoDB | DEV-APP | REPO-01 | `docker compose up` gives a reachable Mongo; Compose smoke tests pass | doing |
-| REPO-05 | Add QA agent and per-commit test reports | QA-TESTER | REPO-03 | QA report template and bug handoff flow are documented | done |
-| REPO-06 | Add selectable orchestrator and hidden worker agents | QA Platform Orchestrator | REPO-05 | User requests route through one chat to DEV/QA subagents | done |
+| REPO-05 | Add QA agents, pytest runs, and Allure reports | QA-APP | REPO-03 | App QA routes through pytest and creates a per-run Allure HTML report | done |
+| REPO-06 | Add Product Manager agent and hidden worker agents | Product Manager | REPO-05 | User requests route through one chat to the appropriate DEV/QA subagents | done |
 
 ### Phase 1: Demo web
 

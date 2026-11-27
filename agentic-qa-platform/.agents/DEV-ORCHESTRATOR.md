@@ -1,7 +1,7 @@
 # Orchestration policy
 
 This is the policy reference for the active VS Code agent at
-`../.github/agents/qa-platform-orchestrator.agent.md`. It is not a separate
+`../.github/agents/agentic-qa-platform-main.agent.md`. It is not a separate
 agent for the user to select.
 
 ## Scope
@@ -34,7 +34,7 @@ QA retesting of the resulting commit.
 
 ## Rules
 
-- The QA Platform Orchestrator is the user-facing development-process agent,
-  not the runtime `agent-app` Orchestrator that classifies user tests.
+- The Product Manager is the user-facing development-process agent, not the
+  runtime `agent-app` Orchestrator that classifies user tests.
 - Keep each development handoff to one task ID and the owning DEV scope.
 - Do not close a QA failure until the fix commit has been retested.

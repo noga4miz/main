@@ -16,6 +16,8 @@ agent definitions consistent for one assigned task.
 ## Rules
 
 - Read the task's specified sections of `PROJECT_PLAN.md` before editing.
+- Read and follow `.agents/PROJECT_STANDARDS.md`; edit it when the task is to
+  update shared project standards.
 - Preserve the distinction between agent policy files in `.agents/` and active
   VS Code Copilot agents in the repository-root `.github/agents/`.
 - Run documentation checks and any tests relevant to workflow configuration.
