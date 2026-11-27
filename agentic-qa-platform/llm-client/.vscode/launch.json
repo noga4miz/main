@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "llm: ask a prompt",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "llm_client",
+      "args": ["${input:prompt}"],
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    }
+  ],
+  "inputs": [
+    { "id": "prompt", "type": "promptString", "description": "Prompt" }
+  ]
+}
