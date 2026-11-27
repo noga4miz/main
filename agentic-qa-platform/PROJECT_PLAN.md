@@ -66,15 +66,19 @@ agentic-qa-platform/
 │   ├─ assets/README.md
 │   ├─ pages/README.md
 │   └─ tests/README.md
-└─ playwright-tests/           # FOLDER 3: Playwright project
+├─ playwright-tests/           # FOLDER 3: Playwright project
+│   ├─ README.md
+│   ├─ helpers/README.md
+│   ├─ reports/README.md
+│   ├─ test_data/README.md
+│   └─ tests/
+│       ├─ README.md
+│       ├─ golden/README.md
+│       └─ generated/README.md
+└─ tests/
     ├─ README.md
-    ├─ helpers/README.md
-    ├─ reports/README.md
-    ├─ test_data/README.md
-    └─ tests/
-        ├─ README.md
-        ├─ golden/README.md
-        └─ generated/README.md
+    ├─ __init__.py
+    └─ test_mongodb_compose.py  # Compose config and MongoDB smoke checks
 ```
 
 ### Existing `llm-client/` package (APP-02)
@@ -215,15 +219,19 @@ Separate from the runtime agents. These are role prompts in `.agents/` that we p
 | **QA-WEB** | `demo-web/tests/` | Verifies the web under test behaves as designed, including each bug mode |
 
 **Rules:** an agent edits only its scope; one task ID per session; each task ends with "Done when" satisfied; any cross-folder change goes through the contracts in Section 5.
+After every change, run all existing tests relevant to the changed code and any
+new regression tests. Run tests for each affected component when a change spans
+components, and report the commands and results with the task outcome.
 
 **Task brief template**
 ```
 Task: <ID> - <title>
 Role: <DEV-APP | DEV-WEB | DEV-PW | QA-APP | QA-WEB>
-Read: docs/PROJECT_PLAN.md (sections: ...)
+Read: PROJECT_PLAN.md (sections: ...)
 May edit: <folder>
 Depends on: <IDs>
 Done when: <acceptance criteria>
+Tests to run: <relevant tests and commands>
 Out of scope: everything else
 ```
 
@@ -241,7 +249,7 @@ Status values: `todo`, `doing`, `done`. Work in order by phase. Within a phase, 
 | REPO-02 | `.gitignore`, `.env.example`, root README skeleton | DEV-APP | REPO-01 | No secrets tracked; env vars documented | done |
 | REPO-03 | Create `.agents/` role files and task brief template | DEV-APP | REPO-01 | Five role files exist with scope and rules | done |
 | REPO-04 | Set monthly API spend cap and store key locally | (manual) | - | Cap set; key in `.env` only | todo |
-| DB-01 | `docker-compose.yml` with MongoDB | DEV-APP | REPO-01 | `docker compose up` gives a reachable Mongo | doing |
+| DB-01 | `docker-compose.yml` with MongoDB | DEV-APP | REPO-01 | `docker compose up` gives a reachable Mongo; Compose smoke tests pass | doing |
 
 ### Phase 1: Demo web
 
