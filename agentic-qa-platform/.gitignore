@@ -4,3 +4,5 @@
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+/qa/runs/*
+!/qa/runs/README.md

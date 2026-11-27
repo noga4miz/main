@@ -10,6 +10,7 @@ executable Playwright tests.
 - `playwright-tests/` — shared helpers and generated tests
 - `llm-client/` — standalone multi-provider LLM client (APP-02)
 - `.agents/` — development-process agent role files
+- `qa/` — per-commit QA reports, bug reports, and templates
 
 See [PROJECT_PLAN.md](PROJECT_PLAN.md) for architecture, contracts, and tasks.
 
@@ -42,3 +43,12 @@ want to keep the database volume).
 
 To run the existing LLM client tests, use `python -m pytest` from `llm-client/`
 after installing its development dependencies.
+
+## Commit-by-commit QA
+
+After each commit, invoke `QA-TESTER` with its full SHA. It writes the test
+status and commands to `qa/runs/<full-commit-sha>/REPORT.md`. On failure, it
+creates a bug report there and hands it to `DEV-ORCHESTRATOR`, which assigns a
+scoped development agent and requests a retest of the fix commit. See
+`qa/README.md` and Section 7 of `PROJECT_PLAN.md`. This is an explicit
+agent-driven handoff for now; Git hooks and CI do not invoke the agents yet.

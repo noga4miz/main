@@ -23,8 +23,8 @@ An AI-agent platform that turns a URL and a plain-language test description into
 The application, demo web, and Playwright project remain separate areas with the
 contracts in Section 5. The existing `llm-client/` is a standalone Python
 package used for APP-02; it stays at the repository root rather than being moved
-into `agent-app/core/`. The tree below reflects the current layout; empty
-README files mark folders reserved for later tasks.
+into `agent-app/core/`. The tree below reflects the current layout; README files
+mark current areas and folders reserved for later implementation.
 
 ```
 agentic-qa-platform/
@@ -33,12 +33,14 @@ agentic-qa-platform/
 ├─ .gitignore
 ├─ .env.example
 ├─ docker-compose.yml
-├─ .agents/                    # DEV/QA role files and task brief template
+├─ .agents/                    # development and QA agent role files
 │   ├─ README.md
 │   ├─ DEV-APP.md
+│   ├─ DEV-ORCHESTRATOR.md
 │   ├─ DEV-PW.md
 │   ├─ DEV-WEB.md
 │   ├─ QA-APP.md
+│   ├─ QA-TESTER.md
 │   ├─ QA-WEB.md
 │   └─ TASK_BRIEF_TEMPLATE.md
 ├─ llm-client/                 # standalone LLM package; implements APP-02
@@ -75,11 +77,25 @@ agentic-qa-platform/
 │       ├─ README.md
 │       ├─ golden/README.md
 │       └─ generated/README.md
-└─ tests/
+├─ tests/
+│   ├─ README.md
+│   ├─ __init__.py
+│   └─ test_mongodb_compose.py  # Compose config and MongoDB smoke checks
+└─ qa/
     ├─ README.md
-    ├─ __init__.py
-    └─ test_mongodb_compose.py  # Compose config and MongoDB smoke checks
+    ├─ templates/
+    │   ├─ BUG_REPORT.md
+    │   └─ COMMIT_REPORT.md
+    └─ runs/
+        ├─ README.md
+        └─ <full-commit-sha>/
+            ├─ REPORT.md
+            └─ BUG-<number>.md  # created only when a test finds a defect
 ```
+
+Generated `qa/runs/<full-commit-sha>/` folders are local/CI test artifacts and
+are ignored by Git to avoid a QA report commit triggering another QA cycle.
+CI should retain them as artifacts once the workflow is configured.
 
 ### Existing `llm-client/` package (APP-02)
 
@@ -215,23 +231,50 @@ Separate from the runtime agents. These are role prompts in `.agents/` that we p
 | **DEV-APP** | `agent-app/` | Implements the application and runtime agents |
 | **DEV-WEB** | `demo-web/` | Implements the demo web |
 | **DEV-PW** | `playwright-tests/` | Implements conftest, setup, helpers, golden tests |
+| **DEV-ORCHESTRATOR** | Coordination only; no application code | Routes QA bug reports to the appropriate DEV role and requests retesting |
 | **QA-APP** | `agent-app/tests/` | Tests our application (unit, agent behavior, e2e) |
 | **QA-WEB** | `demo-web/tests/` | Verifies the web under test behaves as designed, including each bug mode |
+| **QA-TESTER** | `qa/runs/<commit-sha>/` | Runs relevant tests for each commit, records results, and reports failures |
 
 **Rules:** an agent edits only its scope; one task ID per session; each task ends with "Done when" satisfied; any cross-folder change goes through the contracts in Section 5.
 After every change, run all existing tests relevant to the changed code and any
 new regression tests. Run tests for each affected component when a change spans
 components, and report the commands and results with the task outcome.
 
+### Per-commit QA and bug handoff
+
+For every project commit, invoke **QA-TESTER** with the full commit SHA.
+QA-TESTER confirms that the workspace is at that commit, inspects the commit's
+changed files, runs every relevant test suite, and creates
+`qa/runs/<full-commit-sha>/REPORT.md` using the report template. Each suite is
+recorded as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`; skipped tests or missing
+Docker/dependencies are never reported as a pass. For changes with no relevant
+automated tests, the report records `NOT RUN` and explains why.
+
+When a test fails, QA-TESTER creates a `BUG-<number>.md` in the same commit
+folder with the failing command, expected and actual behavior, concise failure
+output, and reproduction steps. It then hands the report and bug path to
+**DEV-ORCHESTRATOR**. The orchestrator identifies the owning area, creates a
+task brief for **DEV-APP**, **DEV-WEB**, or **DEV-PW**, and requests a new
+commit. QA-TESTER reruns the relevant tests against that fix commit and records
+the new result under its SHA. Environment/setup failures are marked `BLOCKED`
+and returned to the orchestrator as blockers, not misreported as application
+bugs.
+
+The report and bug files are local/CI artifacts, not GitHub issues. The
+orchestrator handoff is an explicit agent task; it is not automatically
+triggered by Git hooks or CI yet.
+
 **Task brief template**
 ```
 Task: <ID> - <title>
-Role: <DEV-APP | DEV-WEB | DEV-PW | QA-APP | QA-WEB>
+Role: <DEV-APP | DEV-WEB | DEV-PW | DEV-ORCHESTRATOR | QA-APP | QA-WEB | QA-TESTER>
 Read: PROJECT_PLAN.md (sections: ...)
 May edit: <folder>
 Depends on: <IDs>
 Done when: <acceptance criteria>
 Tests to run: <relevant tests and commands>
+QA report/bug: <path or N/A>
 Out of scope: everything else
 ```
 
@@ -250,6 +293,8 @@ Status values: `todo`, `doing`, `done`. Work in order by phase. Within a phase, 
 | REPO-03 | Create `.agents/` role files and task brief template | DEV-APP | REPO-01 | Five role files exist with scope and rules | done |
 | REPO-04 | Set monthly API spend cap and store key locally | (manual) | - | Cap set; key in `.env` only | todo |
 | DB-01 | `docker-compose.yml` with MongoDB | DEV-APP | REPO-01 | `docker compose up` gives a reachable Mongo; Compose smoke tests pass | doing |
+| REPO-05 | Add QA agent and per-commit test reports | QA-TESTER | REPO-03 | QA report template and bug handoff flow are documented | done |
+| REPO-06 | Add dev workflow orchestrator for QA bugs | DEV-ORCHESTRATOR | REPO-05 | Failed tests are assigned to a scoped DEV role and retested | done |
 
 ### Phase 1: Demo web
 
